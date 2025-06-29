@@ -1,41 +1,561 @@
-# Compiled Lua sources
-luac.out
+-- ESP Script para Roblox Studio
+-- Funciones: Highlight, Nombres, Skeleton, Detección de jugadores invisibles
 
-# luarocks build files
-*.src.rock
-*.zip
-*.tar.gz
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
-# Object files
-*.o
-*.os
-*.ko
-*.obj
-*.elf
+local LocalPlayer = Players.LocalPlayer
 
-# Precompiled Headers
-*.gch
-*.pch
+-- Configuración ESP
+local ESP_CONFIG = {
+    Enabled = true,
+    ShowNames = true,
+    ShowSkeleton = true,
+    ShowHighlight = true,
+    ShowBox = false, -- Nueva opción para mostrar caja
+    ShowGhostIcon = true, -- Mostrar emoji de fantasma cuando está invisible
+    NameSize = 25, -- Tamaño configurable del nombre
+    GhostSize = 23, -- Tamaño del emoji de fantasma
+    HighlightColor = Color3.fromRGB(255, 0, 0),
+    SkeletonColor = Color3.fromRGB(255, 255, 0),
+    NameColor = Color3.fromRGB(255, 255, 255),
+    BoxColor = Color3.fromRGB(255, 255, 0), -- Color de la caja
+    BoxThickness = 3, -- Grosor de la caja en píxeles
+    GhostColor = Color3.fromRGB(255, 255, 255) -- Color del emoji fantasma
+}
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-*.def
-*.exp
+-- Tablas para almacenar objetos ESP
+local ESPObjects = {}
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+-- Función para crear highlight
+local function createHighlight(character)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.FillColor = ESP_CONFIG.HighlightColor
+    highlight.OutlineColor = ESP_CONFIG.HighlightColor
+    highlight.FillTransparency = 0.4
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+    return highlight
+end
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+-- Función para crear nombre flotante
+local function createNameTag(character, playerName)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return nil end
+    
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Name = "ESP_NameTag"
+    billboardGui.Adornee = humanoidRootPart
+    billboardGui.Size = UDim2.new(0, 200, 0, 50)
+    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+    billboardGui.AlwaysOnTop = true
+    billboardGui.Parent = character
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "NameLabel"
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = playerName
+    nameLabel.TextColor3 = ESP_CONFIG.NameColor
+    nameLabel.TextSize = ESP_CONFIG.NameSize
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.Parent = billboardGui
+    
+    return billboardGui
+end
 
+-- Función para crear emoji de fantasma
+local function createGhostIcon(character)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return nil end
+    
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Name = "ESP_GhostIcon"
+    billboardGui.Adornee = humanoidRootPart
+    billboardGui.Size = UDim2.new(0, ESP_CONFIG.GhostSize, 0, ESP_CONFIG.GhostSize)
+    billboardGui.StudsOffset = Vector3.new(0, 0, 0)
+    billboardGui.AlwaysOnTop = true
+    billboardGui.Parent = character
+    
+    local ghostLabel = Instance.new("TextLabel")
+    ghostLabel.Name = "GhostLabel"
+    ghostLabel.Size = UDim2.new(1, 0, 1, 0)
+    ghostLabel.BackgroundTransparency = 1
+    ghostLabel.Text = "👻" -- Emoji de fantasma
+    ghostLabel.TextColor3 = ESP_CONFIG.GhostColor
+    ghostLabel.TextSize = ESP_CONFIG.GhostSize
+    ghostLabel.TextStrokeTransparency = 0
+    ghostLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    ghostLabel.Font = Enum.Font.SourceSansBold
+    ghostLabel.Parent = billboardGui
+    
+    return billboardGui
+end
+
+-- Función para verificar si un jugador está invisible
+local function isPlayerInvisible(character)
+    if not character then return false end
+    
+    -- Verificar todas las partes del cuerpo
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            if part.Transparency < 0.9 then
+                return false -- Si alguna parte es visible, no está invisible
+            end
+        end
+    end
+    
+    return true -- Todas las partes están invisibles
+end
+local function createBox(character)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return nil end
+    
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Name = "ESP_Box"
+    billboardGui.Adornee = humanoidRootPart
+    billboardGui.Size = UDim2.new(6, 0, 8, 0) -- Tamaño de la caja
+    billboardGui.StudsOffset = Vector3.new(0, 0, 0)
+    billboardGui.AlwaysOnTop = true
+    billboardGui.Parent = character
+    
+    -- Frame principal para la caja
+    local boxFrame = Instance.new("Frame")
+    boxFrame.Name = "BoxFrame"
+    boxFrame.Size = UDim2.new(1, 0, 1, 0)
+    boxFrame.Position = UDim2.new(0, 0, 0, 0)
+    boxFrame.BackgroundTransparency = 1
+    boxFrame.Parent = billboardGui
+    
+    -- Crear los 4 bordes de la caja
+    local borderThickness = ESP_CONFIG.BoxThickness
+    
+    -- Borde superior
+    local topBorder = Instance.new("Frame")
+    topBorder.Name = "TopBorder"
+    topBorder.Size = UDim2.new(1, 0, 0, borderThickness)
+    topBorder.Position = UDim2.new(0, 0, 0, 0)
+    topBorder.BackgroundColor3 = ESP_CONFIG.BoxColor
+    topBorder.BorderSizePixel = 0
+    topBorder.Parent = boxFrame
+    
+    -- Borde inferior
+    local bottomBorder = Instance.new("Frame")
+    bottomBorder.Name = "BottomBorder"
+    bottomBorder.Size = UDim2.new(1, 0, 0, borderThickness)
+    bottomBorder.Position = UDim2.new(0, 0, 1, -borderThickness)
+    bottomBorder.BackgroundColor3 = ESP_CONFIG.BoxColor
+    bottomBorder.BorderSizePixel = 0
+    bottomBorder.Parent = boxFrame
+    
+    -- Borde izquierdo
+    local leftBorder = Instance.new("Frame")
+    leftBorder.Name = "LeftBorder"
+    leftBorder.Size = UDim2.new(0, borderThickness, 1, 0)
+    leftBorder.Position = UDim2.new(0, 0, 0, 0)
+    leftBorder.BackgroundColor3 = ESP_CONFIG.BoxColor
+    leftBorder.BorderSizePixel = 0
+    leftBorder.Parent = boxFrame
+    
+    -- Borde derecho
+    local rightBorder = Instance.new("Frame")
+    rightBorder.Name = "RightBorder"
+    rightBorder.Size = UDim2.new(0, borderThickness, 1, 0)
+    rightBorder.Position = UDim2.new(1, -borderThickness, 0, 0)
+    rightBorder.BackgroundColor3 = ESP_CONFIG.BoxColor
+    rightBorder.BorderSizePixel = 0
+    rightBorder.Parent = boxFrame
+    
+    return billboardGui
+end
+local function createSkeleton(character)
+    local skeleton = {}
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return skeleton end
+    
+    -- Partes del cuerpo para el skeleton
+    local bodyParts = {
+        ["Head"] = "UpperTorso",
+        ["UpperTorso"] = "HumanoidRootPart",
+        ["LowerTorso"] = "UpperTorso",
+        ["LeftUpperArm"] = "UpperTorso",
+        ["LeftLowerArm"] = "LeftUpperArm",
+        ["LeftHand"] = "LeftLowerArm",
+        ["RightUpperArm"] = "UpperTorso",
+        ["RightLowerArm"] = "RightUpperArm",
+        ["RightHand"] = "RightLowerArm",
+        ["LeftUpperLeg"] = "LowerTorso",
+        ["LeftLowerLeg"] = "LeftUpperLeg",
+        ["LeftFoot"] = "LeftLowerLeg",
+        ["RightUpperLeg"] = "LowerTorso",
+        ["RightLowerLeg"] = "RightUpperLeg",
+        ["RightFoot"] = "RightLowerLeg"
+    }
+    
+    -- Si es R6, usar partes diferentes
+    if not character:FindFirstChild("UpperTorso") then
+        bodyParts = {
+            ["Head"] = "Torso",
+            ["Left Arm"] = "Torso",
+            ["Right Arm"] = "Torso",
+            ["Left Leg"] = "Torso",
+            ["Right Leg"] = "Torso"
+        }
+    end
+    
+    for partName, parentPartName in pairs(bodyParts) do
+        local part = character:FindFirstChild(partName)
+        local parentPart = character:FindFirstChild(parentPartName)
+        
+        if part and parentPart then
+            local line = Instance.new("Part")
+            line.Name = "ESP_SkeletonLine"
+            line.Anchored = true
+            line.CanCollide = false
+            line.Material = Enum.Material.Neon
+            line.Color = ESP_CONFIG.SkeletonColor
+            line.Size = Vector3.new(0.1, 0.1, 1)
+            line.Parent = Workspace
+            
+            -- Hacer la línea invisible para otros jugadores
+            line.Transparency = 0.3
+            
+            table.insert(skeleton, {line = line, part1 = part, part2 = parentPart})
+        end
+    end
+    
+    return skeleton
+end
+
+-- Función para actualizar skeleton
+local function updateSkeleton(skeleton)
+    for _, connection in pairs(skeleton) do
+        if connection.line and connection.part1 and connection.part2 then
+            local pos1 = connection.part1.Position
+            local pos2 = connection.part2.Position
+            local distance = (pos1 - pos2).Magnitude
+            
+            connection.line.Size = Vector3.new(0.1, 0.1, distance)
+            connection.line.CFrame = CFrame.lookAt((pos1 + pos2) / 2, pos2)
+        end
+    end
+end
+
+-- Función para limpiar objetos ESP
+local function cleanupESP(player)
+    if ESPObjects[player] then
+        -- Limpiar highlight
+        if ESPObjects[player].highlight then
+            ESPObjects[player].highlight:Destroy()
+        end
+        
+        -- Limpiar nombre
+        if ESPObjects[player].nameTag then
+            ESPObjects[player].nameTag:Destroy()
+        end
+        
+        -- Limpiar skeleton
+        if ESPObjects[player].skeleton then
+            for _, connection in pairs(ESPObjects[player].skeleton) do
+                if connection.line then
+                    connection.line:Destroy()
+                end
+            end
+        end
+        
+        -- Limpiar caja
+        if ESPObjects[player].box then
+            ESPObjects[player].box:Destroy()
+        end
+        
+        -- Limpiar icono fantasma
+        if ESPObjects[player].ghostIcon then
+            ESPObjects[player].ghostIcon:Destroy()
+        end
+        
+        ESPObjects[player] = nil
+    end
+end
+
+-- Función para crear ESP completo
+local function createESP(player)
+    if player == LocalPlayer then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    cleanupESP(player) -- Limpiar ESP anterior si existe
+    
+    ESPObjects[player] = {}
+    
+    -- Crear highlight
+    if ESP_CONFIG.ShowHighlight then
+        ESPObjects[player].highlight = createHighlight(character)
+    end
+    
+    -- Crear nombre
+    if ESP_CONFIG.ShowNames then
+        ESPObjects[player].nameTag = createNameTag(character, player.DisplayName)
+    end
+    
+    -- Crear skeleton
+    if ESP_CONFIG.ShowSkeleton then
+        ESPObjects[player].skeleton = createSkeleton(character)
+    end
+    
+    -- Crear caja
+    if ESP_CONFIG.ShowBox then
+        ESPObjects[player].box = createBox(character)
+    end
+    
+    -- Verificar si está invisible y crear icono fantasma
+    if ESP_CONFIG.ShowGhostIcon and isPlayerInvisible(character) then
+        ESPObjects[player].ghostIcon = createGhostIcon(character)
+    end
+end
+
+-- Función para actualizar ESP
+local function updateESP()
+    if not ESP_CONFIG.Enabled then return end
+    
+    for player, espData in pairs(ESPObjects) do
+        if player.Character then
+            -- Actualizar skeleton
+            if espData.skeleton then
+                updateSkeleton(espData.skeleton)
+            end
+            
+            -- Verificar invisibilidad y actualizar icono fantasma
+            local isInvisible = isPlayerInvisible(player.Character)
+            
+            if ESP_CONFIG.ShowGhostIcon then
+                if isInvisible and not espData.ghostIcon then
+                    -- Jugador se volvió invisible, crear icono
+                    espData.ghostIcon = createGhostIcon(player.Character)
+                elseif not isInvisible and espData.ghostIcon then
+                    -- Jugador ya no está invisible, remover icono
+                    espData.ghostIcon:Destroy()
+                    espData.ghostIcon = nil
+                end
+            else
+                -- Si la función está desactivada, remover icono si existe
+                if espData.ghostIcon then
+                    espData.ghostIcon:Destroy()
+                    espData.ghostIcon = nil
+                end
+            end
+        end
+        
+        -- Verificar si el jugador sigue existiendo
+        if not player.Parent then
+            cleanupESP(player)
+        end
+    end
+end
+
+-- Eventos de jugadores
+local function onPlayerAdded(player)
+    -- Cuando el jugador spawnea
+    player.CharacterAdded:Connect(function(character)
+        wait(1) -- Esperar a que el personaje cargue completamente
+        createESP(player)
+    end)
+    
+    -- Si ya tiene personaje
+    if player.Character then
+        createESP(player)
+    end
+end
+
+local function onPlayerRemoving(player)
+    cleanupESP(player)
+end
+
+-- Conectar eventos
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+-- Crear ESP para jugadores ya en el juego
+for _, player in pairs(Players:GetPlayers()) do
+    onPlayerAdded(player)
+end
+
+-- Loop principal para actualizar ESP
+RunService.Heartbeat:Connect(updateESP)
+
+-- Función para cambiar configuración (puedes llamar estas funciones desde la consola)
+_G.ESP_CONFIG = ESP_CONFIG
+
+-- Funciones de control
+_G.ToggleESP = function()
+    ESP_CONFIG.Enabled = not ESP_CONFIG.Enabled
+    print("ESP " .. (ESP_CONFIG.Enabled and "Activado" or "Desactivado"))
+end
+
+_G.SetNameSize = function(size)
+    ESP_CONFIG.NameSize = size
+    print("Tamaño de nombre cambiado a: " .. size)
+    
+    -- Actualizar nombres existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.nameTag then
+            local nameLabel = espData.nameTag:FindFirstChild("NameLabel")
+            if nameLabel then
+                nameLabel.TextSize = size
+            end
+        end
+    end
+end
+
+_G.SetHighlightColor = function(r, g, b)
+    ESP_CONFIG.HighlightColor = Color3.fromRGB(r, g, b)
+    print("Color de highlight cambiado")
+    
+    -- Actualizar highlights existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.highlight then
+            espData.highlight.FillColor = ESP_CONFIG.HighlightColor
+            espData.highlight.OutlineColor = ESP_CONFIG.HighlightColor
+        end
+    end
+end
+
+_G.SetGhostSize = function(size)
+    ESP_CONFIG.GhostSize = size
+    print("Tamaño del fantasma cambiado a: " .. size)
+    
+    -- Actualizar iconos fantasma existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.ghostIcon then
+            espData.ghostIcon.Size = UDim2.new(0, size, 0, size)
+            local ghostLabel = espData.ghostIcon:FindFirstChild("GhostLabel")
+            if ghostLabel then
+                ghostLabel.TextSize = size
+            end
+        end
+    end
+end
+
+_G.SetGhostColor = function(r, g, b)
+    ESP_CONFIG.GhostColor = Color3.fromRGB(r, g, b)
+    print("Color del fantasma cambiado")
+    
+    -- Actualizar color de iconos fantasma existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.ghostIcon then
+            local ghostLabel = espData.ghostIcon:FindFirstChild("GhostLabel")
+            if ghostLabel then
+                ghostLabel.TextColor3 = ESP_CONFIG.GhostColor
+            end
+        end
+    end
+end
+
+_G.ToggleGhost = function()
+    ESP_CONFIG.ShowGhostIcon = not ESP_CONFIG.ShowGhostIcon
+    print("Icono fantasma " .. (ESP_CONFIG.ShowGhostIcon and "Activado" or "Desactivado"))
+    
+    if not ESP_CONFIG.ShowGhostIcon then
+        -- Remover todos los iconos fantasma existentes
+        for player, espData in pairs(ESPObjects) do
+            if espData.ghostIcon then
+                espData.ghostIcon:Destroy()
+                espData.ghostIcon = nil
+            end
+        end
+    end
+end
+
+_G.SetBoxColor = function(r, g, b)
+    ESP_CONFIG.BoxColor = Color3.fromRGB(r, g, b)
+    print("Color de caja cambiado")
+    
+    -- Actualizar cajas existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.box then
+            local boxFrame = espData.box:FindFirstChild("BoxFrame")
+            if boxFrame then
+                -- Actualizar todos los bordes
+                for _, child in pairs(boxFrame:GetChildren()) do
+                    if child:IsA("Frame") then
+                        child.BackgroundColor3 = ESP_CONFIG.BoxColor
+                    end
+                end
+            end
+        end
+    end
+end
+
+_G.SetBoxThickness = function(thickness)
+    ESP_CONFIG.BoxThickness = thickness
+    print("Grosor de caja cambiado a: " .. thickness)
+    
+    -- Actualizar grosor de cajas existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.box then
+            local boxFrame = espData.box:FindFirstChild("BoxFrame")
+            if boxFrame then
+                local topBorder = boxFrame:FindFirstChild("TopBorder")
+                local bottomBorder = boxFrame:FindFirstChild("BottomBorder")
+                local leftBorder = boxFrame:FindFirstChild("LeftBorder")
+                local rightBorder = boxFrame:FindFirstChild("RightBorder")
+                
+                if topBorder then topBorder.Size = UDim2.new(1, 0, 0, thickness) end
+                if bottomBorder then 
+                    bottomBorder.Size = UDim2.new(1, 0, 0, thickness)
+                    bottomBorder.Position = UDim2.new(0, 0, 1, -thickness)
+                end
+                if leftBorder then leftBorder.Size = UDim2.new(0, thickness, 1, 0) end
+                if rightBorder then 
+                    rightBorder.Size = UDim2.new(0, thickness, 1, 0)
+                    rightBorder.Position = UDim2.new(1, -thickness, 0, 0)
+                end
+            end
+        end
+    end
+end
+
+_G.ToggleBox = function()
+    ESP_CONFIG.ShowBox = not ESP_CONFIG.ShowBox
+    print("Caja " .. (ESP_CONFIG.ShowBox and "Activada" or "Desactivada"))
+    
+    if not ESP_CONFIG.ShowBox then
+        -- Remover todas las cajas existentes
+        for player, espData in pairs(ESPObjects) do
+            if espData.box then
+                espData.box:Destroy()
+                espData.box = nil
+            end
+        end
+    else
+        -- Crear cajas para jugadores existentes
+        for player, espData in pairs(ESPObjects) do
+            if player.Character and not espData.box then
+                espData.box = createBox(player.Character)
+            end
+        end
+    end
+end
+
+print("ESP Script cargado!")
+print("Comandos disponibles:")
+print("_G.ToggleESP() - Activar/Desactivar ESP")
+print("_G.SetNameSize(numero) - Cambiar tamaño del nombre")
+print("_G.SetHighlightColor(r, g, b) - Cambiar color del highlight")
+print("_G.SetBoxColor(r, g, b) - Cambiar color de la caja")
+print("_G.SetBoxThickness(numero) - Cambiar grosor de la caja")
+print("_G.ToggleBox() - Activar/Desactivar caja")
+print("_G.SetGhostSize(numero) - Cambiar tamaño del fantasma")
+print("_G.SetGhostColor(r, g, b) - Cambiar color del fantasma")
+print("_G.ToggleGhost() - Activar/Desactivar icono fantasma")
+print("Ejemplos:")
+print("_G.SetNameSize(20)")
+print("_G.SetHighlightColor(0, 255, 0)")
+print("_G.SetBoxColor(255, 255, 0)")
+print("_G.SetGhostSize(64)")
+print("_G.SetGhostColor(128, 0, 255)")
