@@ -49,7 +49,7 @@ local function createHighlight(character)
     highlight.Name = "ESP_Highlight"
     highlight.FillColor = ESP_CONFIG.HighlightColor
     highlight.OutlineColor = ESP_CONFIG.HighlightColor
-    highlight.FillTransparency = 0.5
+    highlight.FillTransparency = 0.4
     highlight.OutlineTransparency = 0
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = character
@@ -433,6 +433,19 @@ _G.SetNameSize = function(size)
             if nameLabel then
                 nameLabel.TextSize = size
             end
+        end
+    end
+end
+
+_G.SetHighlightColor = function(r, g, b)
+    ESP_CONFIG.HighlightColor = Color3.fromRGB(r, g, b)
+    print("Color de highlight cambiado")
+    
+    -- Actualizar highlights existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.highlight then
+            espData.highlight.FillColor = ESP_CONFIG.HighlightColor
+            espData.highlight.OutlineColor = ESP_CONFIG.HighlightColor
         end
     end
 end
