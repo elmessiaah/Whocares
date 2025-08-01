@@ -463,6 +463,41 @@ _G.SetHighlightColor = function(r, g, b)
     end
 end
 
+_G.SetHighlightColor = function(r, g, b)
+    ESP_CONFIG.HighlightColor = Color3.fromRGB(r, g, b)
+    print("Color de highlight cambiado")
+    
+    -- Actualizar highlights existentes
+    for player, espData in pairs(ESPObjects) do
+        if espData.highlight then
+            espData.highlight.FillColor = ESP_CONFIG.HighlightColor
+            espData.highlight.OutlineColor = ESP_CONFIG.HighlightColor
+        end
+    end
+end
+
+_G.ToggleHighlight = function()
+    ESP_CONFIG.ShowHighlight = not ESP_CONFIG.ShowHighlight
+    print("Highlight principal " .. (ESP_CONFIG.ShowHighlight and "Activado" or "Desactivado"))
+    
+    if not ESP_CONFIG.ShowHighlight then
+        -- Remover todos los highlights principales existentes
+        for player, espData in pairs(ESPObjects) do
+            if espData.highlight then
+                espData.highlight:Destroy()
+                espData.highlight = nil
+            end
+        end
+    else
+        -- Crear highlights principales para jugadores existentes
+        for player, espData in pairs(ESPObjects) do
+            if player.Character and not espData.highlight then
+                espData.highlight = createHighlight(player.Character)
+            end
+        end
+    end
+end
+
 _G.SetBorderHighlightColor = function(r, g, b)
     ESP_CONFIG.BorderHighlightColor = Color3.fromRGB(r, g, b)
     print("Color de highlight de bordes cambiado")
@@ -617,9 +652,10 @@ end
 
 print("ESP Script cargado!")
 print("Comandos disponibles:")
-print("_G.ToggleESP() - Activar/Desactivar ESP")
+print("_G.ToggleESP() - Activar/Desactivar ESP completo")
 print("_G.SetNameSize(numero) - Cambiar tamaño del nombre")
-print("_G.SetHighlightColor(r, g, b) - Cambiar color del highlight")
+print("_G.SetHighlightColor(r, g, b) - Cambiar color del highlight principal")
+print("_G.ToggleHighlight() - Activar/Desactivar highlight principal")
 print("_G.SetBorderHighlightColor(r, g, b) - Cambiar color del highlight de bordes")
 print("_G.ToggleBorderHighlight() - Activar/Desactivar highlight de bordes")
 print("_G.SetBoxColor(r, g, b) - Cambiar color de la caja")
@@ -629,9 +665,10 @@ print("_G.SetGhostSize(numero) - Cambiar tamaño del fantasma")
 print("_G.SetGhostColor(r, g, b) - Cambiar color del fantasma")
 print("_G.ToggleGhost() - Activar/Desactivar icono fantasma")
 print("Ejemplos:")
-print("_G.SetNameSize(20)")
-print("_G.SetHighlightColor(0, 255, 0)")
-print("_G.SetBorderHighlightColor(255, 255, 255)")
+print("_G.SetNameSize(25)")
+print("_G.SetHighlightColor(255, 0, 0)  -- Rojo")
+print("_G.SetBorderHighlightColor(0, 0, 0)  -- Negro")
+print("_G.ToggleHighlight()  -- Si no ves el rojo")
 print("_G.SetBoxColor(255, 255, 0)")
-print("_G.SetGhostSize(64)")
+print("_G.SetGhostSize(30)")
 print("_G.SetGhostColor(128, 0, 255)")
