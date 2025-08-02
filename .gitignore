@@ -15,7 +15,6 @@ local ESP_CONFIG = {
     ShowHighlight = true,
     ShowBox = false, -- Nueva opción para mostrar caja
     ShowGhostIcon = true, -- Mostrar emoji de fantasma cuando está invisible
-    ShowBorderHighlight = true, -- Highlight negro en los bordes
     NameSize = 25, -- Tamaño configurable del nombre
     GhostSize = 23, -- Tamaño del emoji de fantasma
     HighlightColor = Color3.fromRGB(255, 0, 0),
@@ -23,14 +22,13 @@ local ESP_CONFIG = {
     NameColor = Color3.fromRGB(255, 255, 255),
     BoxColor = Color3.fromRGB(255, 255, 0), -- Color de la caja
     BoxThickness = 3, -- Grosor de la caja en píxeles
-    GhostColor = Color3.fromRGB(255, 255, 255), -- Color del emoji fantasma
-    BorderHighlightColor = Color3.fromRGB(0, 0, 0) -- Color del highlight de bordes (negro)
+    GhostColor = Color3.fromRGB(255, 255, 255) -- Color del emoji fantasma
 }
 
 -- Tablas para almacenar objetos ESP
 local ESPObjects = {}
 
--- Función para crear highlight ROJO PRINCIPAL
+-- Función para crear highlight
 local function createHighlight(character)
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESP_Highlight"
@@ -41,19 +39,6 @@ local function createHighlight(character)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = character
     return highlight
-end
-
--- Función para crear highlight de bordes negro
-local function createBorderHighlight(character)
-    local borderHighlight = Instance.new("Highlight")
-    borderHighlight.Name = "ESP_BorderHighlight"
-    borderHighlight.FillColor = ESP_CONFIG.BorderHighlightColor
-    borderHighlight.OutlineColor = ESP_CONFIG.BorderHighlightColor
-    borderHighlight.FillTransparency = 1 -- Solo mostrar el borde, no el relleno
-    borderHighlight.OutlineTransparency = 0
-    borderHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    borderHighlight.Parent = character
-    return borderHighlight
 end
 
 -- Función para crear nombre flotante
@@ -127,8 +112,6 @@ local function isPlayerInvisible(character)
     
     return true -- Todas las partes están invisibles
 end
-
--- Función para crear caja visual 2D (BillboardGui)
 local function createBox(character)
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     if not humanoidRootPart then return nil end
@@ -190,8 +173,6 @@ local function createBox(character)
     
     return billboardGui
 end
-
--- Función para crear skeleton
 local function createSkeleton(character)
     local skeleton = {}
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
@@ -268,14 +249,9 @@ end
 -- Función para limpiar objetos ESP
 local function cleanupESP(player)
     if ESPObjects[player] then
-        -- Limpiar highlight ROJO
+        -- Limpiar highlight
         if ESPObjects[player].highlight then
             ESPObjects[player].highlight:Destroy()
-        end
-        
-        -- Limpiar highlight de bordes NEGRO
-        if ESPObjects[player].borderHighlight then
-            ESPObjects[player].borderHighlight:Destroy()
         end
         
         -- Limpiar nombre
@@ -317,16 +293,9 @@ local function createESP(player)
     
     ESPObjects[player] = {}
     
-    -- Crear highlight ROJO PRINCIPAL
+    -- Crear highlight
     if ESP_CONFIG.ShowHighlight then
         ESPObjects[player].highlight = createHighlight(character)
-        print("Creado highlight ROJO para: " .. player.Name)
-    end
-    
-    -- Crear highlight de bordes NEGRO
-    if ESP_CONFIG.ShowBorderHighlight then
-        ESPObjects[player].borderHighlight = createBorderHighlight(character)
-        print("Creado highlight NEGRO para: " .. player.Name)
     end
     
     -- Crear nombre
@@ -443,77 +412,15 @@ _G.SetNameSize = function(size)
     end
 end
 
--- FUNCIÓN PARA HIGHLIGHT ROJO PRINCIPAL
 _G.SetHighlightColor = function(r, g, b)
     ESP_CONFIG.HighlightColor = Color3.fromRGB(r, g, b)
-    print("Color de highlight ROJO cambiado a: " .. r .. ", " .. g .. ", " .. b)
+    print("Color de highlight cambiado")
     
-    -- Actualizar highlights ROJOS existentes
+    -- Actualizar highlights existentes
     for player, espData in pairs(ESPObjects) do
         if espData.highlight then
             espData.highlight.FillColor = ESP_CONFIG.HighlightColor
             espData.highlight.OutlineColor = ESP_CONFIG.HighlightColor
-            print("Actualizado highlight ROJO de: " .. player.Name)
-        end
-    end
-end
-
-_G.ToggleHighlight = function()
-    ESP_CONFIG.ShowHighlight = not ESP_CONFIG.ShowHighlight
-    print("Highlight ROJO " .. (ESP_CONFIG.ShowHighlight and "Activado" or "Desactivado"))
-    
-    if not ESP_CONFIG.ShowHighlight then
-        -- Remover todos los highlights ROJOS existentes
-        for player, espData in pairs(ESPObjects) do
-            if espData.highlight then
-                espData.highlight:Destroy()
-                espData.highlight = nil
-                print("Removido highlight ROJO de: " .. player.Name)
-            end
-        end
-    else
-        -- Crear highlights ROJOS para jugadores existentes
-        for player, espData in pairs(ESPObjects) do
-            if player.Character and not espData.highlight then
-                espData.highlight = createHighlight(player.Character)
-                print("Creado highlight ROJO para: " .. player.Name)
-            end
-        end
-    end
-end
-
--- FUNCIÓN PARA HIGHLIGHT NEGRO DE BORDES
-_G.SetBorderHighlightColor = function(r, g, b)
-    ESP_CONFIG.BorderHighlightColor = Color3.fromRGB(r, g, b)
-    print("Color de highlight de bordes cambiado a: " .. r .. ", " .. g .. ", " .. b)
-    
-    -- Actualizar highlights de bordes existentes
-    for player, espData in pairs(ESPObjects) do
-        if espData.borderHighlight then
-            espData.borderHighlight.FillColor = ESP_CONFIG.BorderHighlightColor
-            espData.borderHighlight.OutlineColor = ESP_CONFIG.BorderHighlightColor
-        end
-    end
-end
-
-_G.ToggleBorderHighlight = function()
-    ESP_CONFIG.ShowBorderHighlight = not ESP_CONFIG.ShowBorderHighlight
-    print("Highlight de bordes " .. (ESP_CONFIG.ShowBorderHighlight and "Activado" or "Desactivado"))
-    
-    if not ESP_CONFIG.ShowBorderHighlight then
-        -- Remover todos los highlights de bordes existentes
-        for player, espData in pairs(ESPObjects) do
-            if espData.borderHighlight then
-                espData.borderHighlight:Destroy()
-                espData.borderHighlight = nil
-            end
-        end
-    else
-        -- Crear highlights de bordes para jugadores existentes
-        for player, espData in pairs(ESPObjects) do
-            if player.Character and not espData.borderHighlight then
-                espData.borderHighlight = createBorderHighlight(player.Character)
-            end
         end
     end
 end
@@ -635,25 +542,20 @@ _G.ToggleBox = function()
     end
 end
 
-print("🔴 ESP Script cargado con HIGHLIGHT ROJO!")
+print("ESP Script cargado!")
 print("Comandos disponibles:")
-print("_G.ToggleESP() - Activar/Desactivar ESP completo")
+print("_G.ToggleESP() - Activar/Desactivar ESP")
 print("_G.SetNameSize(numero) - Cambiar tamaño del nombre")
-print("")
-print("🔴 HIGHLIGHT ROJO:")
-print("_G.SetHighlightColor(255, 0, 0) - Cambiar color del highlight ROJO")
-print("_G.ToggleHighlight() - Activar/Desactivar highlight ROJO")
-print("")
-print("⚫ HIGHLIGHT NEGRO:")
-print("_G.SetBorderHighlightColor(0, 0, 0) - Cambiar color del highlight NEGRO")
-print("_G.ToggleBorderHighlight() - Activar/Desactivar highlight NEGRO")
-print("")
+print("_G.SetHighlightColor(r, g, b) - Cambiar color del highlight")
 print("_G.SetBoxColor(r, g, b) - Cambiar color de la caja")
+print("_G.SetBoxThickness(numero) - Cambiar grosor de la caja")
 print("_G.ToggleBox() - Activar/Desactivar caja")
 print("_G.SetGhostSize(numero) - Cambiar tamaño del fantasma")
+print("_G.SetGhostColor(r, g, b) - Cambiar color del fantasma")
 print("_G.ToggleGhost() - Activar/Desactivar icono fantasma")
-print("")
-print("🧪 PARA PROBAR EL HIGHLIGHT ROJO:")
-print("_G.SetHighlightColor(255, 0, 0)  -- Rojo brillante")
-print("_G.SetHighlightColor(0, 255, 0)  -- Verde brillante")
-print("_G.ToggleHighlight()  -- Si no lo ves")
+print("Ejemplos:")
+print("_G.SetNameSize(20)")
+print("_G.SetHighlightColor(0, 255, 0)")
+print("_G.SetBoxColor(255, 255, 0)")
+print("_G.SetGhostSize(64)")
+print("_G.SetGhostColor(128, 0, 255)")
